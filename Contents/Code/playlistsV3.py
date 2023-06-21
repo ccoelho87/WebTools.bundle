@@ -14,20 +14,14 @@ import datetime
 import re
 from misc import misc
 from plextvhelper import plexTV
-from uuid import uuid4
-from consts import MEDIATYPE, VALIDEXT, EXCLUDEELEMENTS, EXCLUDEFIELDS
+from consts import VALIDEXT, EXCLUDEELEMENTS, EXCLUDEFIELDS
 
-
-# TODO: Remove when Plex framework allows token in the header. Also look at delete and list method
+# TODO: Remove when Plex framework allows token in the header. Also look at copy, delete and list method
 import urllib2
 from xml.etree import ElementTree
 # TODO End
 
-
-GET = ['LIST', 'DOWNLOAD']
-PUT = []
-POST = ['COPY', 'IMPORT']
-DELETE = ['DELETE']
+FUNCTIONS = {"get": ["LIST", "DOWNLOAD"], "post": ["COPY", "IMPORT"], "delete": ["DELETE"]}
 
 MEDIASTEPS = 25 # Amount of medias we ask for at a time
 
@@ -41,8 +35,8 @@ MEDIATYPES = {'Track' : 10}
 class playlistsV3(object):
     ''' Defaults used by the rest of the class '''
     @classmethod
-    def init(self):
-        self.getListsURL = misc.GetLoopBack() + '/playlists/all'
+    def init(self):                        
+        self.getListsURL = misc.GetLoopBack() + '/playlists/all'        
 
     ''' This metode will import a playlist. '''
     @classmethod
@@ -284,7 +278,7 @@ class playlistsV3(object):
             finally:                
                 return [sType, smart, items]
 
-        ''' *************** Main stuff here *********************** '''
+        """ *************** Main stuff here *********************** """
 
         returnResult = {}
         success = []
@@ -478,70 +472,138 @@ class playlistsV3(object):
             Log.Debug('Got a playlist that looks like:')
             Log.Debug(json.dumps(jsonItems))
             # So we got all the info needed now from the source user, now time for the target user
-            try:
-                # TODO Change to native framework call, when Plex allows token in header
-                urltoPlayLists = misc.GetLoopBack() + '/playlists'
-                opener = urllib2.build_opener(urllib2.HTTPHandler)
-                request = urllib2.Request(urltoPlayLists)
-                request.add_header(
-                    'X-Plex-Token', users[userto]['accessToken'])
-                response = opener.open(request).read()
-                playlistto = XML.ElementFromString(response)
-            except Ex.HTTPError, e:
-                Log.Exception(
-                    'HTTP exception when downloading a playlist for the owner was: %s' % (e))
-                req.clear()
-                req.set_status(e.code)
-                req.finish(str(e))
-            except Exception, e:
-                Log.Exception(
-                    'Exception happened when downloading a playlist for the user was: %s' % (str(e)))
-                req.clear()
-                req.set_status(500)
-                req.finish(
-                    'Exception happened when downloading a playlist for the user was: %s' % (str(e)))
-            # So we got the target users list of playlists, and if the one we need to copy already is there, we delete it
-            for itemto in playlistto:
-                if playlistTitle == itemto.get('title'):
-                    keyto = itemto.get('ratingKey')
-                    deletePlayLIstforUsr(
-                        req, keyto, users[userto]['accessToken'])
-            # Make url for creation of playlist
-            targetFirstUrl = misc.GetLoopBack() + '/playlists?type=' + playlistType + \
-                '&title=' + String.Quote(playlistTitle) + \
-                '&smart=0&uri=library://'
-            counter = 0
-            for lib in jsonItems:
-                if counter < 1:
-                    targetFirstUrl += lib + '/directory//library/metadata/'
-                    medias = ','.join(map(str, jsonItems[lib]))
-                    targetFirstUrl += String.Quote(medias)
-                    # First url for the post created, so send it, and grab the response
+            if userto.upper() == 'ALL':
+                Log.Info('Copy to all users')                
+                for user in users:
                     try:
+                        # TODO Change to native framework call, when Plex allows token in header
+                        urltoPlayLists = misc.GetLoopBack() + '/playlists'
                         opener = urllib2.build_opener(urllib2.HTTPHandler)
-                        request = urllib2.Request(targetFirstUrl)
+                        request = urllib2.Request(urltoPlayLists)
                         request.add_header(
-                            'X-Plex-Token', users[userto]['accessToken'])
-                        request.get_method = lambda: 'POST'
+                            'X-Plex-Token', users[user]['accessToken'])
                         response = opener.open(request).read()
-                        ratingKey = XML.ElementFromString(
-                            response).xpath('Playlist/@ratingKey')[0]
+                        playlistto = XML.ElementFromString(response)
+                    except Ex.HTTPError, e:
+                        Log.Exception(
+                            'HTTP exception when downloading a playlist for the owner was: %s' % (e))
+                        req.clear()
+                        req.set_status(e.code)
+                        req.finish(str(e))
                     except Exception, e:
                         Log.Exception(
-                            'Exception creating first part of playlist was: %s' % (str(e)))
-                    counter += 1
-                else:
-                    # Remaining as put
-                    medias = ','.join(map(str, jsonItems[lib]))
-                    targetSecondUrl = misc.GetLoopBack() + '/playlists/' + ratingKey + '/items?uri=library://' + \
-                        lib + '/directory//library/metadata/' + \
-                        String.Quote(medias)
+                            'Exception happened when downloading a playlist for the user was: %s' % (str(e)))
+                        req.clear()
+                        req.set_status(500)
+                        req.finish(
+                            'Exception happened when downloading a playlist for the user was: %s' % (str(e)))
+                    # So we got the target users list of playlists, and if the one we need to copy already is there, we delete it
+                    for itemto in playlistto:
+                        if playlistTitle == itemto.get('title'):
+                            keyto = itemto.get('ratingKey')
+                            deletePlayLIstforUsr(
+                                req, keyto, users[user]['accessToken'])
+                    # Make url for creation of playlist
+                    targetFirstUrl = misc.GetLoopBack() + '/playlists?type=' + playlistType + \
+                        '&title=' + String.Quote(playlistTitle) + \
+                        '&smart=0&uri=library://'
+                    counter = 0
+                    for lib in jsonItems:
+                        if counter < 1:
+                            targetFirstUrl += lib + '/directory//library/metadata/'
+                            medias = ','.join(map(str, jsonItems[lib]))
+                            targetFirstUrl += String.Quote(medias)
+                            # First url for the post created, so send it, and grab the response
+                            try:
+                                opener = urllib2.build_opener(urllib2.HTTPHandler)
+                                request = urllib2.Request(targetFirstUrl)
+                                request.add_header(
+                                    'X-Plex-Token', users[user]['accessToken'])
+                                request.get_method = lambda: 'POST'
+                                response = opener.open(request).read()
+                                ratingKey = XML.ElementFromString(
+                                    response).xpath('Playlist/@ratingKey')[0]
+                            except Exception, e:
+                                Log.Exception(
+                                    'Exception creating first part of playlist was: %s' % (str(e)))
+                            counter += 1
+                        else:
+                            # Remaining as put
+                            medias = ','.join(map(str, jsonItems[lib]))
+                            targetSecondUrl = misc.GetLoopBack() + '/playlists/' + ratingKey + '/items?uri=library://' + \
+                                lib + '/directory//library/metadata/' + \
+                                String.Quote(medias)
+                            opener = urllib2.build_opener(urllib2.HTTPHandler)
+                            request = urllib2.Request(targetSecondUrl)
+                            request.add_header(
+                                'X-Plex-Token', users[user]['accessToken'])
+                            request.get_method = lambda: 'PUT'
+                            opener.open(request)
+            else:
+                try:
+                    # TODO Change to native framework call, when Plex allows token in header
+                    urltoPlayLists = misc.GetLoopBack() + '/playlists'
                     opener = urllib2.build_opener(urllib2.HTTPHandler)
-                    request = urllib2.Request(targetSecondUrl)
+                    request = urllib2.Request(urltoPlayLists)
                     request.add_header(
                         'X-Plex-Token', users[userto]['accessToken'])
-                    request.get_method = lambda: 'PUT'
-                    opener.open(request)
+                    response = opener.open(request).read()
+                    playlistto = XML.ElementFromString(response)
+                except Ex.HTTPError, e:
+                    Log.Exception(
+                        'HTTP exception when downloading a playlist for the owner was: %s' % (e))
+                    req.clear()
+                    req.set_status(e.code)
+                    req.finish(str(e))
+                except Exception, e:
+                    Log.Exception(
+                        'Exception happened when downloading a playlist for the user was: %s' % (str(e)))
+                    req.clear()
+                    req.set_status(500)
+                    req.finish(
+                        'Exception happened when downloading a playlist for the user was: %s' % (str(e)))
+                # So we got the target users list of playlists, and if the one we need to copy already is there, we delete it
+                for itemto in playlistto:
+                    if playlistTitle == itemto.get('title'):
+                        keyto = itemto.get('ratingKey')
+                        deletePlayLIstforUsr(
+                            req, keyto, users[userto]['accessToken'])
+                # Make url for creation of playlist
+                targetFirstUrl = misc.GetLoopBack() + '/playlists?type=' + playlistType + \
+                    '&title=' + String.Quote(playlistTitle) + \
+                    '&smart=0&uri=library://'
+                counter = 0
+                for lib in jsonItems:
+                    if counter < 1:
+                        targetFirstUrl += lib + '/directory//library/metadata/'
+                        medias = ','.join(map(str, jsonItems[lib]))
+                        targetFirstUrl += String.Quote(medias)
+                        # First url for the post created, so send it, and grab the response
+                        try:
+                            opener = urllib2.build_opener(urllib2.HTTPHandler)
+                            request = urllib2.Request(targetFirstUrl)
+                            request.add_header(
+                                'X-Plex-Token', users[userto]['accessToken'])
+                            request.get_method = lambda: 'POST'
+                            response = opener.open(request).read()
+                            ratingKey = XML.ElementFromString(
+                                response).xpath('Playlist/@ratingKey')[0]
+                        except Exception, e:
+                            Log.Exception(
+                                'Exception creating first part of playlist was: %s' % (str(e)))
+                        counter += 1
+                    else:
+                        # Remaining as put
+                        medias = ','.join(map(str, jsonItems[lib]))
+                        targetSecondUrl = misc.GetLoopBack() + '/playlists/' + ratingKey + '/items?uri=library://' + \
+                            lib + '/directory//library/metadata/' + \
+                            String.Quote(medias)
+                        opener = urllib2.build_opener(urllib2.HTTPHandler)
+                        request = urllib2.Request(targetSecondUrl)
+                        request.add_header(
+                            'X-Plex-Token', users[userto]['accessToken'])
+                        request.get_method = lambda: 'PUT'
+                        opener.open(request)
         else:
             Log.Critical('Missing Arguments')
             req.clear()
@@ -731,64 +793,20 @@ class playlistsV3(object):
 
     ''' Get the relevant function and call it with optinal params '''
     @classmethod
-    def getFunction(self, metode, req):
-        self.init()
-        params = req.request.uri[8:].upper().split('/')
-        self.function = None
-        if metode == 'get':
-            for param in params:
-                if param in GET:
-                    self.function = param
-                    break
-                else:
-                    pass
-        elif metode == 'post':
-            for param in params:
-                if param in POST:
-                    self.function = param
-                    break
-                else:
-                    pass
-        elif metode == 'put':
-            for param in params:
-                if param in PUT:
-                    self.function = param
-                    break
-                else:
-                    pass
-        elif metode == 'delete':
-            for param in params:
-                if param in DELETE:
-                    self.function = param
-                    break
-                else:
-                    pass
-        if self.function == None:
+    def getFunction(self, metode, req):        
+        self.init()        
+        function, params = misc.getFunction(FUNCTIONS, metode, req)                    
+        if function == None:
             Log.Debug('Function to call is None')
             req.clear()
             req.set_status(404)
             req.finish('Unknown function call')
-        else:
-            # Check for optional argument
-            paramsStr = req.request.uri[req.request.uri.upper().find(
-                self.function) + len(self.function):]
-            # remove starting and ending slash
-            if paramsStr.endswith('/'):
-                paramsStr = paramsStr[:-1]
-            if paramsStr.startswith('/'):
-                paramsStr = paramsStr[1:]
-            # Turn into a list
-            params = paramsStr.split('/')
-            # If empty list, turn into None
-            if params[0] == '':
-                params = None
+        else:           
             try:
-                Log.Debug('Function to call is: ' + self.function +
-                          ' with params: ' + str(params))
                 if params == None:
-                    getattr(self, self.function)(req)
+                    getattr(self, function)(req)
                 else:
-                    getattr(self, self.function)(req, params)
+                    getattr(self, function)(req, params)
             except Exception, e:
                 Log.Exception('Exception in process of: ' + str(e))
 
@@ -896,6 +914,7 @@ def getFilesFromLib(libs, sType):
     # Add from one library at a time
     for lib in libs:        
         start = 0 # Start point of items                
+        print 'Ged Types int', str(MEDIATYPES[ROOTNODES[sType]])
         baseUrl = misc.GetLoopBack() + '/library/sections/' + lib + '/all?type=' + str(MEDIATYPES[ROOTNODES[sType]]) + '&' + EXCLUDE + '&X-Plex-Container-Start='        
         url = baseUrl + '0' + '&X-Plex-Container-Size=0'        
         libInfo = XML.ElementFromURL(url)
@@ -924,37 +943,13 @@ def getFilesFromLib(libs, sType):
     Log.Debug(itemList)    
     return itemList
 
-'''
-getPlayListItems returns an array with the playlist items
-Params:
-user : key of user, or null if the owner
-key : key of playlist
-'''
 def getPlayListItems(user, key):
-
-    # Send the request to the server, and returns the respond
-    def sendReq(userToken, url):
-        if not userToken:
-            # User is the owner
-            try:
-                return XML.ElementFromURL(url)
-            except Exception, e:
-                Log.Exception('Exception when getting a response for %s as the owner was %s' %(url, str(e)))
-                return None
-        else:
-            try:
-                # TODO Change to native framework call, when Plex allows token in header
-                opener = urllib2.build_opener(urllib2.HTTPHandler)
-                request = urllib2.Request(sizeURL)
-                request.add_header(
-                    'X-Plex-Token', userToken)
-                response = opener.open(request).read()
-                return XML.ElementFromString(response)
-            except Exception, e:
-                Log.Exception('Exception when getting a response for %s as a user was %s' %(url, str(e)))
-                return None
-
-    # *********** MAIN *****************
+    """
+    getPlayListItems returns an array with the playlist items
+    Params:
+    user : key of user, or null if the owner
+    key : key of playlist
+    """
     Log.Info('Starting getPlaylistItems with user: %s and key of: %s' %(user, key))
     playlist = []    
     infoURL = misc.GetLoopBack() + '/playlists/' + key
@@ -970,7 +965,7 @@ def getPlayListItems(user, key):
             Log.Exception('Exception getting the token for a user was: %s' %str(e))
             return None
     try:        
-        info = sendReq(userToken, infoURL).xpath('//Playlist')[0]        
+        info = getXMLElement(userToken, infoURL).xpath('//Playlist')[0]        
     except Exception, e:
         Log.Exception('Exception getting info was: %s' %str(e))
         return None
@@ -1001,7 +996,7 @@ def getPlayListItems(user, key):
     start = 0
     while True:        
         url = misc.GetLoopBack() + '/playlists/' + key + '/items?X-Plex-Container-Start=' + str(start) + '&X-Plex-Container-Size=' + str(MEDIASTEPS)
-        response = sendReq(userToken, url)        
+        response = getXMLElement(userToken, url)        
         start += MEDIASTEPS        
         if response.get('size') == '0':
             break
@@ -1061,4 +1056,32 @@ def getPlayListItems(user, key):
             Log.Critical('Url to offending item was %s' %itemURL) 
             return None                                                  
     return [ title, playlist ]
+
+def getXMLElement(userToken, url):
+    """
+    Send the request to the server, and returns the respond as an XML element
+    If an error happened, then return None
+    Params: 
+    UserToken: None if Owner, else token
+    url: Url to fetch info from
+    """
+    if not userToken:
+        # User is the owner
+        try:
+            return XML.ElementFromURL(url)
+        except Exception, e:
+            Log.Exception('Exception when getting a response for %s as the owner was %s' %(url, str(e)))
+            return None
+    else:
+        try:
+            # TODO Change to native framework call, when Plex allows token in header
+            opener = urllib2.build_opener(urllib2.HTTPHandler)
+            request = urllib2.Request(sizeURL)
+            request.add_header(
+                'X-Plex-Token', userToken)
+            response = opener.open(request).read()
+            return XML.ElementFromString(response)
+        except Exception, e:
+            Log.Exception('Exception when getting a response for %s as a user was %s' %(url, str(e)))
+            return None
 

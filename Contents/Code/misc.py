@@ -76,11 +76,57 @@ class misc(object):
 
         ''' Code below not used for now
 		try:
-			httpResponse = HTTP.Request('http://[::1]:32400/web', immediate=True, timeout=5)
+			httpResponse = HTTP.Request(
+			    'http://[::1]:32400/web', immediate=True, timeout=5)
 			return 'http://[::1]:32400'
 		except:
 			return 'http://127.0.0.1:32400'
 		'''
+
+    def getFunction(self, FUNCTIONS, metode, req):
+        """ This function will break  up a req, and split it out into function to call, and params for it """
+        params = req.request.uri[8:].upper().split('/')
+        function = None
+        if metode not in FUNCTIONS:
+            Log.Critical('Method not found')
+            return [function, '']
+        for param in params:
+            if param in FUNCTIONS[metode]:
+                function = param
+                break
+            else:
+                pass
+        paramsStr = req.request.uri[req.request.uri.upper().find(
+            function) + len(function):]
+        # remove starting and ending slash
+        if paramsStr.endswith('/'):
+            paramsStr = paramsStr[:-1]
+        if paramsStr.startswith('/'):
+            paramsStr = paramsStr[1:]
+        # Turn into a list
+        params = paramsStr.split('/')
+        # If empty list, turn into None
+        if params[0] == '':
+            params = None
+        Log.Debug('Function to call is: %s with params: %s' %
+                  (function, str(params)))
+        return [function, params]
+
+    def enum(self, *sequential, **named):
+        """
+        This will emulate an emun
+        Params: 
+            enum('users', 'users_self', 'users_all', 'users_self_all')
+                Above will create the enum
+            enum.users_self_all 
+                Above will return 3
+            enum.reverse_mapping[3]
+                Above will return users_self_all
+        """
+        enums = dict(zip(sequential, range(len(sequential))), **named)
+        reverse = dict((value, key) for key, value in enums.iteritems())
+        enums['reverse_mapping'] = reverse
+        return type('Enum', (), enums)
 
     ####################################################################################################
     # This function will return a filtered json, Non case sensitive, based on a url params filter

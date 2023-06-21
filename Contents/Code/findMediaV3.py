@@ -55,9 +55,9 @@ class findMediaV3(object):
     init_already = False							# Make sure init only run once
     bResultPresent = False						# Do we have a result to present
 
-    # Init of the class
     @classmethod
     def init(self):
+        """Init of the class"""
         global retMsg
         global MediaChuncks
         global CoreUrl
@@ -78,9 +78,9 @@ class findMediaV3(object):
 
     #********** Functions below ******************
 
-    # Set settings
     @classmethod
     def SETSETTINGS(self, req, *args):
+        """Set settings"""
         try:
             # Get the Payload
             data = json.loads(req.request.body.decode('utf-8'))
@@ -108,17 +108,17 @@ class findMediaV3(object):
             req.set_status(500)
             req.finish('Fatal error in setSettings was: ' + str(e))
 
-    # Main call for class.....
     @classmethod
     def SCANSECTION(self, req, *args):
+        """Main call for class....."""
         global AmountOfMediasInDatabase
         global retMsg
         global bAbort
         retMsg = ['WebTools']
         bAbort = False
 
-        # Scan shows from the database
         def scanShowDB(sectionNumber=0):
+            """Scan shows from the database"""
             global AmountOfMediasInDatabase
             global mediasFromDB
             global statusMsg
@@ -190,7 +190,7 @@ class findMediaV3(object):
                                                     unmatchedURL).xpath('//Video')
                                                 filename = unmatched[0].xpath(
                                                     '//Part/@file')[0]
-                                                if self.addThisItem(filename, 'video'):
+                                                if self.addThisItem(filename):
                                                     Log.Info(
                                                         'Unmatched file confirmed as %s' % filename)
                                                     unmatchedByPlex.append(
@@ -203,7 +203,7 @@ class findMediaV3(object):
                                             filename = episode.get('file')
                                             filename = String.Unquote(
                                                 filename).encode('utf8', 'ignore')
-                                            if self.addThisItem(filename, 'video'):
+                                            if self.addThisItem(filename):
                                                 mediasFromDB.append(
                                                     filename.encode("utf-8"))
                                             iEpisode += 1
@@ -236,10 +236,9 @@ class findMediaV3(object):
             except Exception, e:
                 Log.Exception('Fatal error in scanShowDB: ' + str(e))
                 runningState = 99
-        # End scanShowDB
 
-        # Find missing files from the database
         def findMissingFromDB():
+            """Find missing files from the database"""
             global MissingFromDB
             Log.Debug('Finding items missing from Database')
             MissingFromDB = []
@@ -253,8 +252,8 @@ class findMediaV3(object):
             except ValueError:
                 Log.Info('Aborted in findMissingFromDB')
 
-        # Find missing files from the filesystem
         def findMissingFromFS():
+            """Find missing files from the filesystem"""
             global MissingFromFS
             Log.Debug('Finding items missing from FileSystem')
             MissingFromFS = []
@@ -268,8 +267,8 @@ class findMediaV3(object):
             except ValueError:
                 Log.Info('Aborted in findMissingFromFS')
 
-        # Scan the file system
-        def getFiles(filePath, mediaType):
+        def getFiles(filePath):
+            """Scan the file system"""
             global mediasFromFileSystem
             global runningState
             global statusMsg
@@ -291,7 +290,7 @@ class findMediaV3(object):
                             for file in files:
                                 filename = Core.storage.join_path(root, file)
                                 file = misc.Unicodize(filename).encode('utf8')
-                                if self.addThisItem(filename, mediaType):
+                                if self.addThisItem(filename):
                                     if Platform.OS == 'Windows':
                                         # I hate windows
                                         pos = filename.find(':') - 1
@@ -321,8 +320,8 @@ class findMediaV3(object):
                 Log.Exception('Exception happend in getFiles: ' + str(e))
                 runningState = 99
 
-        # Get a list of all files in a Movie Library from the database
         def scanMovieDb(sectionNumber=0):
+            """Get a list of all files in a Movie Library from the database"""
             global AmountOfMediasInDatabase
             global mediasFromDB
             global unmatchedByPlex
@@ -361,7 +360,7 @@ class findMediaV3(object):
                                 unmatchedURL).xpath('//Video')
                             filename = unmatched[0].xpath(
                                 '//Part/@file')[0]
-                            if self.addThisItem(filename, 'video'):
+                            if self.addThisItem(filename):
                                 Log.Info(
                                     'Unmatched file confirmed as %s' % filename)
                                 unmatchedByPlex.append(
@@ -377,7 +376,7 @@ class findMediaV3(object):
                             filename = part.get('file')
                             filename = unicode(misc.Unicodize(
                                 part.get('file')).encode('utf8', 'ignore'))
-                            if self.addThisItem(filename, 'video'):
+                            if self.addThisItem(filename):
                                 mediasFromDB.append(filename.encode("utf-8"))
                             statusMsg = wtV3().GETTRANSLATE(self, None, Internal=True,
                                                             String='Scanning database: item %s of %s : Working') % (iCount, totalSize)
@@ -390,51 +389,20 @@ class findMediaV3(object):
                             Log.Debug(mediasFromDB)
                         runningState = 1
                         break
-
-                    '''
-                    # Grap a chunk from the server
-                    medias = XML.ElementFromURL(self.CoreUrl + sectionNumber + '/all?X-Plex-Container-Start=' + str(iStart) + '&X-Plex-Container-Size=' + str(
-                        self.MediaChuncks) + '&excludeElements=' + excludeElements + '&excludeFields=' + excludeFields).xpath('//Part')
-                    # Walk the chunk
-                    for part in medias:
-                        if bAbort:
-                            runningState = 0
-                            raise ValueError('Aborted')
-                            break
-                        iCount += 1
-                        filename = part.get('file')
-                        filename = unicode(misc.Unicodize(
-                            part.get('file')).encode('utf8', 'ignore'))
-                        mediasFromDB.append(filename)
-                        statusMsg = wtV3().GETTRANSLATE(self, None, Internal=True,
-                                         String='Scanning database: item %s of %s : Working') % (iCount, totalSize)
-                    iStart += self.MediaChuncks
-                    if len(medias) == 0:
-                        statusMsg = 'Scanning database: %s : Done' % (
-                            totalSize)
-                        Log.Debug('***** Done scanning the database *****')
-                        if DEBUGMODE:
-                            Log.Debug(mediasFromDB)
-                        runningState = 1
-                        break
-                    '''
                 return
             except Exception, e:
                 Log.Exception('Fatal error in scanMovieDb: ' + str(e))
                 runningState = 99
-        # End scanMovieDb
 
-        # Scan db and files. Must run as a thread
         def scanMedias(sectionNumber, sectionLocations, sectionType, req):
+            """Scan db and files. Must run as a thread"""
             global runningState
             global statusMsg
             global retMsg
             try:
                 if sectionType == 'movie':
-                    MediaType = 'video'
                     scanMovieDb(sectionNumber=sectionNumber)
                 elif sectionType == 'show':
-                    MediaType = 'video'
                     scanShowDB(sectionNumber=sectionNumber)
                 else:
                     req.clear()
@@ -442,7 +410,7 @@ class findMediaV3(object):
                     req.finish('Unknown Section Type')
                 if bAbort:
                     raise ValueError('Aborted')
-                getFiles(sectionLocations, MediaType)
+                getFiles(sectionLocations)
                 if bAbort:
                     raise ValueError('Aborted')
                 retMsg = {}
@@ -463,7 +431,6 @@ class findMediaV3(object):
                 Log.Exception('Exception happend in scanMedias: ' + str(e))
                 statusMsg = wtV3().GETTRANSLATE(self, None, Internal=True, String='Idle')
 
-        # ************ Main function ************
         Log.Debug('scanSection started')
         try:
             del mediasFromDB[:]										# Files from the database
@@ -502,9 +469,9 @@ class findMediaV3(object):
             req.finish('Fatal error happened in scanSection: ' + str(ex))
             return req
 
-    # Abort
     @classmethod
     def ABORT(self, req, *args):
+        """Abort"""
         global runningState
         runningState = 0
         global bAbort
@@ -512,9 +479,9 @@ class findMediaV3(object):
         req.clear()
         req.set_status(200)
 
-    # Get supported Section list
     @classmethod
     def GETSECTIONSLIST(self, req, *args):
+        """Get supported Section list"""
         Log.Debug('getSectionsList requested')
         try:
             rawSections = XML.ElementFromURL(
@@ -536,9 +503,9 @@ class findMediaV3(object):
             req.set_status(500)
             req.finish('Fatal error happened in getSectionsList')
 
-    # Return the result
     @classmethod
     def GETRESULT(self, req, *args):
+        """Return the result"""
         # Are we in idle mode?
         if runningState == 0:
             req.clear()
@@ -560,9 +527,9 @@ class findMediaV3(object):
             req.set_status(204)
         return
 
-    # Return current status
     @classmethod
     def GETSTATUS(self, req, *args):
+        """Return current status"""
         req.clear()
         req.set_status(200)
         if runningState == 0:
@@ -570,18 +537,18 @@ class findMediaV3(object):
         else:
             req.finish(statusMsg)
 
-    # Reset settings to default
     @classmethod
     def RESETSETTINGS(self, req, *args):
+        """Reset settings to default"""
         Dict['findMedia'] = None
         Dict.Save()
         self.populatePrefs()
         req.clear()
         req.set_status(200)
 
-    # Return the settings of this plugin
     @classmethod
     def GETSETTINGS(self, req, *args):
+        """Return the settings of this plugin"""
         req.clear()
         req.set_header('Content-Type', 'application/json; charset=utf-8')
         req.set_status(200)
@@ -589,9 +556,9 @@ class findMediaV3(object):
 
 ################### Internal functions #############################
 
-    ''' Get the relevant function and call it with optinal params '''
     @classmethod
     def getFunction(self, metode, req, *args):
+        """Get the relevant function and call it with optinal params"""
         self.init()
         params = req.request.uri[8:].upper().split('/')
         self.function = None
@@ -652,9 +619,9 @@ class findMediaV3(object):
             except Exception, e:
                 Log.Exception('Exception in process of: ' + str(e))
 
-    ''' Populate the defaults, if not already there '''
     @classmethod
     def populatePrefs(self):
+        """Populate the defaults, if not already there"""
         try:
             if Dict['findMedia'] == None:
                 Dict['findMedia'] = {
@@ -676,13 +643,12 @@ class findMediaV3(object):
         except Exception, e:
             Log.Exception('Exception in populatePrefs was %s' % str(e))
 
-    '''
-    Returns true or false, depending on if a media should be added to the list
-    Param file: The file to be investigated, with full path
-    Param mediaType: Type of media
-    '''
     @classmethod
-    def addThisItem(self, file, mediaType):
+    def addThisItem(self, file):
+        """
+        Returns true or false, depending on if a media should be added to the list
+        Param file: The file to be investigated, with full path
+        """
         try:
             if os.path.splitext(file)[1].lower()[1:] in Dict['findMedia']['VALID_EXTENSIONS']:
                 parts = self.splitall(file)
@@ -709,9 +675,9 @@ class findMediaV3(object):
             Log.Exception('Exception in addThisItem was %s' % str(e))
             return False
 
-    ''' Returns the different parts of a filepath '''
     @classmethod
     def splitall(self, path):
+        """ Returns the different parts of a filepath"""
         allparts = []
         while 1:
             parts = os.path.split(path)

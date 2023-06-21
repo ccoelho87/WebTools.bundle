@@ -10,7 +10,7 @@
 '''
 
 from tornado.web import *
-from consts import DEBUGMODE, WT_AUTH, VERSION, NAME, V3MODULES
+from Code.consts import DEBUGMODE, WT_AUTH, VERSION, NAME, V3MODULES
 import sys
 
 import wtV3
@@ -25,19 +25,21 @@ import playlistsV3
 import techinfo
 import viewstate
 
+
 class BaseHandler(RequestHandler):
     def get_current_user(self):
+        """Returns the Cookie of the logged in user"""
         return self.get_secure_cookie(NAME)
-
-# API V3
 
 
 class apiv3(BaseHandler):
+
+    """This is the class for API V3"""
     module = None
     function = None
 
-    # Disable auth when debug, and get module
     def prepare(self):
+        """Disable auth when debug, and get module"""
         # Set Default header
         self.set_header('Cache-Control',
                         'no-store, no-cache, must-revalidate, max-age=0')
@@ -103,7 +105,7 @@ class apiv3(BaseHandler):
                                             except:
                                                 try:
                                                     myClass = getattr(
-                                                        viewstate, V3MODULES[self.module])                                                    
+                                                        viewstate, V3MODULES[self.module])
                                                 except Exception, e:
                                                     Log.Exception(
                                                         'Exception getting the class in apiV3: %s' % str(e))

@@ -30,8 +30,7 @@ EXCLUDEELEMENTS = 'excludeElements=Actor,Collection,Country,Director,Genre,Label
 EXCLUDEFIELDS = 'excludeFields=summary,tagline,file'
 
 # Modules used in WebTools
-V3MODULES = {'WT': 'wtV3', 'PMS': 'pmsV3', 'LOGS': 'logsV3', 'LANGUAGE': 'languageV3',
-             'SETTINGS': 'settingsV3', 'GIT': 'gitV3', 'FINDMEDIA': 'findMediaV3', 'JSONEXPORTER': 'jsonExporterV3', 'PLAYLISTS': 'playlistsV3', 'TECHINFO': 'techinfo', 'VIEWSTATE': 'viewstate'}
+V3MODULES = {'WT': 'wtV3', 'PMS': 'pmsV3', 'LOGS': 'logsV3', 'LANGUAGE': 'languageV3', 'SETTINGS': 'settingsV3', 'GIT': 'gitV3', 'FINDMEDIA': 'findMediaV3', 'JSONEXPORTER': 'jsonExporterV3', 'PLAYLISTS': 'playlistsV3', 'TECHINFO': 'techinfo', 'VIEWSTATE': 'viewstate'}
 UILANGUAGE = 'en'
 UILANGUAGEDEBUG = False
 
@@ -45,7 +44,7 @@ VALIDEXT = {'video': ['3g2', '3gp', 'asf', 'asx', 'avc', 'avi', 'avs', 'bivx', '
               'audio': ['mp3', 'm4a', 'm4b', 'flac', 'aac', 'rm', 'rma', 'mpa', 'wav', 'wma', 'ogg', 'mp2', 'mka',
               'ac3', 'dts', 'ape', 'mpc', 'mp+', 'mpp', 'shn', 'oga', 'aiff', 'aif', 'wv', 'dsf', 'dsd', 'opus']}
 
-MEDIATYPE = {
+PLEX_MEDIATYPE = {
     'METADATA_MOVIE' : 1,
     'METADATA_SHOW' : 2,
     'METADATA_SEASON' : 3,
